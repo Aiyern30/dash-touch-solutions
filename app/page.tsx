@@ -69,6 +69,8 @@ export default function Home() {
   }, []);
 
   const silentPrint = useCallback(async () => {
+    console.log("[FRONTEND] silentPrint called, selectedPrinter:", selectedPrinter);
+    
     if (!selectedPrinter) {
       alert("Please select a printer first");
       return;
@@ -77,31 +79,53 @@ export default function Home() {
     try {
       // Get the print content
       const printContent = document.querySelector(".print-content");
-      if (!printContent) return;
+      console.log("[FRONTEND] printContent found:", !!printContent);
+      
+      if (!printContent) {
+        console.error("[FRONTEND] Print content not found!");
+        alert("Print content not found. Please try again.");
+        return;
+      }
+
+      const htmlContent = printContent.innerHTML;
+      console.log("[FRONTEND] HTML content length:", htmlContent.length);
 
       // Send to print service
+      console.log("[FRONTEND] Sending print request to:", PRINT_SERVICE_URL);
       const response = await fetch(PRINT_SERVICE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          html: printContent.innerHTML,
+          html: htmlContent,
           printerName: selectedPrinter,
         }),
       });
 
-      if (!response.ok) throw new Error("Print failed");
+      console.log("[FRONTEND] Response status:", response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || "Print failed");
+      }
 
-      console.log("Printed successfully to:", selectedPrinter);
+      const result = await response.json();
+      console.log("[FRONTEND] Print result:", result);
+      
+      // Show confirmation to user
+      alert(`✓ Printed successfully to: ${selectedPrinter}`);
     } catch (error) {
-      console.error("Silent print failed:", error);
+      console.error("[FRONTEND] Silent print failed:", error);
+      alert("Silent print failed: " + (error as Error).message);
       // Fallback to regular print
       window.print();
     }
-  }, [selectedPrinter]);
+  }, [selectedPrinter, PRINT_SERVICE_URL]);
 
   // Memoized handler with double-print prevention
   const handleStatusChange = useCallback(
     (orderId: string, newStatus: OrderStatus) => {
+      console.log(`[FRONTEND] Status change: ${orderId} -> ${newStatus}`);
+      
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId
@@ -111,19 +135,24 @@ export default function Home() {
       );
 
       // Auto-print when order becomes ready (with guard)
-      if (
-        newStatus === "ready" &&
-        !printingRef.current &&
-        printOrderId !== orderId
-      ) {
-        printingRef.current = true;
-        setPrintOrderId(orderId);
+      if (newStatus === "ready") {
+        console.log("[FRONTEND] Status is ready, checking print conditions...");
+        console.log("[FRONTEND] printingRef.current:", printingRef.current);
+        console.log("[FRONTEND] printOrderId:", printOrderId);
+        
+        if (!printingRef.current && printOrderId !== orderId) {
+          console.log("[FRONTEND] Triggering auto-print for order:", orderId);
+          printingRef.current = true;
+          setPrintOrderId(orderId);
 
-        setTimeout(async () => {
-          await silentPrint();
-          setPrintOrderId(undefined);
-          printingRef.current = false;
-        }, 150);
+          setTimeout(async () => {
+            await silentPrint();
+            setPrintOrderId(undefined);
+            printingRef.current = false;
+          }, 150);
+        } else {
+          console.log("[FRONTEND] Print blocked - already printing or same order");
+        }
       }
     },
     [printOrderId, silentPrint]
@@ -131,7 +160,12 @@ export default function Home() {
 
   const handlePrintOrder = useCallback(
     async (orderId: string) => {
-      if (printingRef.current) return;
+      console.log("[FRONTEND] handlePrintOrder called for:", orderId);
+      
+      if (printingRef.current) {
+        console.log("[FRONTEND] Already printing, skipping");
+        return;
+      }
 
       printingRef.current = true;
       setPrintOrderId(orderId);
@@ -146,7 +180,12 @@ export default function Home() {
   );
 
   const handlePrintAll = useCallback(async () => {
-    if (printingRef.current) return;
+    console.log("[FRONTEND] handlePrintAll called");
+    
+    if (printingRef.current) {
+      console.log("[FRONTEND] Already printing, skipping");
+      return;
+    }
 
     printingRef.current = true;
     setPrintOrderId(undefined);
