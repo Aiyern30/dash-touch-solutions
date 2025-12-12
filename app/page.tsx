@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Printer } from "lucide-react";
 import { Order, OrderStatus } from "@/types/order";
 import { generateInitialOrders } from "@/data/orders";
@@ -11,6 +11,11 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "all">("all");
   const [printOrderId, setPrintOrderId] = useState<string | undefined>();
   const printingRef = useRef(false);
+
+  // Add printer states
+  const [printers, setPrinters] = useState<string[]>([]);
+  const [selectedPrinter, setSelectedPrinter] = useState<string>("");
+  const [isPrinterLoading, setIsPrinterLoading] = useState(true);
 
   // Generate initial orders only once on client side using lazy initialization
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -26,9 +31,49 @@ export default function Home() {
 
   // Add print service configuration
   const PRINT_SERVICE_URL = "http://localhost:3001/print";
-  const DEFAULT_PRINTER = "Your Printer Name"; // Configure this
+  const PRINTERS_URL = "http://localhost:3001/printers";
 
-  const silentPrint = useCallback(async (orderId?: string) => {
+  // Fetch available printers on mount
+  useEffect(() => {
+    const fetchPrinters = async () => {
+      try {
+        const response = await fetch(PRINTERS_URL);
+        if (!response.ok) throw new Error("Failed to fetch printers");
+
+        const data = await response.json();
+        setPrinters(data.printers || []);
+
+        // Load saved printer from localStorage or use first printer
+        const savedPrinter = localStorage.getItem("selectedPrinter");
+        if (savedPrinter && data.printers.includes(savedPrinter)) {
+          setSelectedPrinter(savedPrinter);
+        } else if (data.printers.length > 0) {
+          setSelectedPrinter(data.printers[0]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch printers:", error);
+      } finally {
+        setIsPrinterLoading(false);
+      }
+    };
+
+    if (isClient) {
+      fetchPrinters();
+    }
+  }, [isClient]);
+
+  // Handle printer selection change
+  const handlePrinterChange = useCallback((printerName: string) => {
+    setSelectedPrinter(printerName);
+    localStorage.setItem("selectedPrinter", printerName);
+  }, []);
+
+  const silentPrint = useCallback(async () => {
+    if (!selectedPrinter) {
+      alert("Please select a printer first");
+      return;
+    }
+
     try {
       // Get the print content
       const printContent = document.querySelector(".print-content");
@@ -40,19 +85,19 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           html: printContent.innerHTML,
-          printerName: DEFAULT_PRINTER,
+          printerName: selectedPrinter,
         }),
       });
 
       if (!response.ok) throw new Error("Print failed");
 
-      console.log("Printed successfully");
+      console.log("Printed successfully to:", selectedPrinter);
     } catch (error) {
       console.error("Silent print failed:", error);
       // Fallback to regular print
       window.print();
     }
-  }, []);
+  }, [selectedPrinter]);
 
   // Memoized handler with double-print prevention
   const handleStatusChange = useCallback(
@@ -75,7 +120,7 @@ export default function Home() {
         setPrintOrderId(orderId);
 
         setTimeout(async () => {
-          await silentPrint(orderId);
+          await silentPrint();
           setPrintOrderId(undefined);
           printingRef.current = false;
         }, 150);
@@ -92,7 +137,7 @@ export default function Home() {
       setPrintOrderId(orderId);
 
       setTimeout(async () => {
-        await silentPrint(orderId);
+        await silentPrint();
         setPrintOrderId(undefined);
         printingRef.current = false;
       }, 100);
@@ -147,15 +192,46 @@ export default function Home() {
               <h1 className="text-lg sm:text-2xl font-bold text-gray-900">
                 Kitchen Display System
               </h1>
-              <button
-                onClick={handlePrintAll}
-                className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-3 sm:px-6 rounded-lg transition-colors flex items-center gap-2 text-sm sm:text-base whitespace-nowrap"
-              >
-                <Printer size={18} className="hidden sm:block" />
-                <Printer size={16} className="sm:hidden" />
-                <span className="hidden sm:inline">Print All</span>
-                <span className="sm:hidden">Print</span>
-              </button>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Printer Selector */}
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedPrinter}
+                    onChange={(e) => handlePrinterChange(e.target.value)}
+                    disabled={isPrinterLoading || printers.length === 0}
+                    className="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 px-2 sm:px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isPrinterLoading ? (
+                      <option>Loading printers...</option>
+                    ) : printers.length === 0 ? (
+                      <option>No printers found</option>
+                    ) : (
+                      <>
+                        <option value="" disabled>
+                          Select printer
+                        </option>
+                        {printers.map((printer) => (
+                          <option key={printer} value={printer}>
+                            {printer}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <button
+                  onClick={handlePrintAll}
+                  disabled={!selectedPrinter || printingRef.current}
+                  className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-3 sm:px-6 rounded-lg transition-colors flex items-center gap-2 text-sm sm:text-base whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Printer size={18} className="hidden sm:block" />
+                  <Printer size={16} className="sm:hidden" />
+                  <span className="hidden sm:inline">Print All</span>
+                  <span className="sm:hidden">Print</span>
+                </button>
+              </div>
             </div>
           </div>
         </header>

@@ -14,6 +14,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Get available printers
+app.get('/printers', async (req, res) => {
+  try {
+    const printers = await printer.getPrinters();
+    const printerNames = printers.map(p => p.name);
+    res.json({ printers: printerNames });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post('/print', async (req, res) => {
   try {
     const { html, printerName } = req.body;

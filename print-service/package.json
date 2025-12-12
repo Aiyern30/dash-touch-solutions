@@ -2,14 +2,15 @@
   "name": "print-service",
   "version": "1.0.0",
   "type": "module",
+  "description": "Silent printing service for kitchen display",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "pdf-to-printer": "^5.7.0",
-    "puppeteer": "^21.6.1",
-    "cors": "^2.8.5"
+    "pdf-to-printer": "^5.5.0",
+    "puppeteer": "^24.33.0"
   }
 }
