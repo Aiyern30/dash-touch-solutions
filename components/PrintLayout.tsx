@@ -14,7 +14,7 @@ export const PrintLayout: React.FC<PrintLayoutProps> = React.memo(
       : orders;
 
     return (
-      <div className="print-only" style={{ display: "none" }}>
+      <div className="print-content" style={{ display: "none" }}>
         <style>{`
           @media print {
             .print-only { display: block !important; }
