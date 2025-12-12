@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kitchen Display System (KDS) – Next.js
 
-## Getting Started
+A clean, modular **Kitchen Display System (KDS)** built with **Next.js**, featuring order management, real-time status updates, and auto-print logic optimized for thermal printers.
 
-First, run the development server:
+---
+
+## 🚀 Overview
+
+This project implements a Kitchen Display System using **Next.js (App Router)**. It displays incoming kitchen orders, allows staff to update order status, and supports auto-printing when an order becomes **Ready**.
+
+It uses **Tailwind CSS** for styling and **Geist** as the primary font.
+
+---
+
+## 📁 Project Structure
+
+```
+app/
+  layout.tsx        # Root layout
+  page.tsx          # Main KDS UI
+  globals.css       # Global styles
+public/
+  ...               # Static assets
+```
+
+---
+
+## 🛠 Tech Stack
+
+- **Next.js 14+ (App Router)**
+- **React**
+- **Tailwind CSS**
+- **TypeScript**
+- **Geist Google Font**
+
+---
+
+## 📦 Installation
+
+```bash
+npm install
+```
+
+---
+
+## ▶️ Running the App
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The app will be available at:
+**[http://localhost:3000](http://localhost:3000)**
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🧩 Root Layout Configuration
 
-## Learn More
+The project uses a custom layout with:
 
-To learn more about Next.js, take a look at the following resources:
+- Google Fonts (Geist)
+- Global styles
+- App Metadata
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+To update the site title or description, modify the `metadata` block inside `app/layout.tsx`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## ✨ Features
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### ✔️ Order Display & Workflow
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Order number
+- Items & quantity
+- Order time
+- Status: **Pending → Preparing → Ready**
+- Fast, intuitive status updates (optimistic UI)
+
+### ✔️ Auto-Print Logic (Silent Print-Like Behavior)
+
+- Automatically triggers `window.print()` when order becomes **Ready**
+- Ready to integrate with thermal printers / print proxies
+- Clean layout suitable for narrow 58mm/80mm receipts
+
+### ✔️ Modern UI
+
+- Clean, mobile-friendly KDS layout
+- Uses Geist font for clarity
+- Responsive with Tailwind
+
+---
+
+## 📬 Contact
+
+If you need help modifying the project, adding API integration, or improving the print layout, feel free to ask!
