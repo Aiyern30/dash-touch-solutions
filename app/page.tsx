@@ -1,8 +1,10 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Clock, Printer, Check, AlertCircle } from "lucide-react";
+"use client";
+
+import React, { useState } from "react";
+import { Clock, Printer } from "lucide-react";
 
 // Types
-type OrderStatus = "pending" | "preparing" | "ready";
+type OrderStatus = "pending" | "preparing" | "ready" | "completed";
 
 interface OrderItem {
   id: string;
@@ -25,156 +27,168 @@ const formatTime = (date: Date): string => {
   return new Intl.DateTimeFormat("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
+    hour12: false,
   }).format(date);
 };
 
-const getStatusColor = (status: OrderStatus): string => {
-  const colors = {
-    pending: "bg-amber-100 text-amber-800 border-amber-300",
-    preparing: "bg-blue-100 text-blue-800 border-blue-300",
-    ready: "bg-green-100 text-green-800 border-green-300",
-  };
-  return colors[status];
+const getTimeAgo = (date: Date): string => {
+  const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 1) return "just now";
+  if (minutes === 1) return "1 min ago";
+  return `${minutes} min ago`;
 };
 
-const getStatusLabel = (status: OrderStatus): string => {
+// Initial mock data
+const INITIAL_ORDERS: Order[] = [
+  {
+    id: "001",
+    orderNumber: "#001",
+    items: [
+      { id: "1", name: "Nasi Lemak", quantity: 2 },
+      { id: "2", name: "Teh Tarik", quantity: 2 },
+      { id: "3", name: "Roti Canai", quantity: 3 },
+    ],
+    status: "pending",
+    createdAt: new Date(Date.now() - 5 * 60000),
+    updatedAt: new Date(Date.now() - 5 * 60000),
+  },
+  {
+    id: "002",
+    orderNumber: "#002",
+    items: [
+      { id: "4", name: "Char Kway Teow", quantity: 1 },
+      { id: "5", name: "Ice Lemon Tea", quantity: 1 },
+    ],
+    status: "preparing",
+    createdAt: new Date(Date.now() - 10 * 60000),
+    updatedAt: new Date(Date.now() - 3 * 60000),
+  },
+  {
+    id: "003",
+    orderNumber: "#003",
+    items: [
+      { id: "6", name: "Nasi Goreng", quantity: 1 },
+      { id: "7", name: "Mee Goreng", quantity: 1 },
+      { id: "8", name: "Teh O", quantity: 2 },
+    ],
+    status: "ready",
+    createdAt: new Date(Date.now() - 15 * 60000),
+    updatedAt: new Date(Date.now() - 1 * 60000),
+  },
+  {
+    id: "004",
+    orderNumber: "#004",
+    items: [
+      { id: "9", name: "Laksa", quantity: 1 },
+      { id: "10", name: "Teh Tarik", quantity: 1 },
+    ],
+    status: "completed",
+    createdAt: new Date(Date.now() - 20 * 60000),
+    updatedAt: new Date(Date.now() - 5 * 60000),
+  },
+];
+
+// Status Badge Component
+const StatusBadge: React.FC<{ status: OrderStatus }> = ({ status }) => {
+  const styles = {
+    pending: "bg-yellow-100 text-yellow-800 border border-yellow-300",
+    preparing: "bg-blue-100 text-blue-800 border border-blue-300",
+    ready: "bg-green-100 text-green-800 border border-green-300",
+    completed: "bg-gray-100 text-gray-600 border border-gray-300",
+  };
+
   const labels = {
     pending: "Pending",
     preparing: "Preparing",
     ready: "Ready",
+    completed: "Completed",
   };
-  return labels[status];
-};
 
-// Mock data generator
-const generateMockOrders = (): Order[] => {
-  const now = new Date();
-  return [
-    {
-      id: "1",
-      orderNumber: "#1234",
-      items: [
-        { id: "1", name: "Margherita Pizza", quantity: 2 },
-        { id: "2", name: "Caesar Salad", quantity: 1, notes: "No croutons" },
-        { id: "3", name: "Garlic Bread", quantity: 1 },
-      ],
-      status: "pending",
-      createdAt: new Date(now.getTime() - 5 * 60000),
-      updatedAt: new Date(now.getTime() - 5 * 60000),
-    },
-    {
-      id: "2",
-      orderNumber: "#1235",
-      items: [
-        { id: "4", name: "Pepperoni Pizza", quantity: 1 },
-        { id: "5", name: "Buffalo Wings", quantity: 12, notes: "Extra spicy" },
-      ],
-      status: "preparing",
-      createdAt: new Date(now.getTime() - 10 * 60000),
-      updatedAt: new Date(now.getTime() - 3 * 60000),
-    },
-    {
-      id: "3",
-      orderNumber: "#1236",
-      items: [
-        { id: "6", name: "Veggie Burger", quantity: 1 },
-        { id: "7", name: "French Fries", quantity: 2 },
-        { id: "8", name: "Coke", quantity: 2 },
-      ],
-      status: "ready",
-      createdAt: new Date(now.getTime() - 15 * 60000),
-      updatedAt: new Date(now.getTime() - 1 * 60000),
-    },
-    {
-      id: "4",
-      orderNumber: "#1237",
-      items: [
-        { id: "9", name: "Spaghetti Carbonara", quantity: 1 },
-        { id: "10", name: "Tiramisu", quantity: 2 },
-      ],
-      status: "pending",
-      createdAt: new Date(now.getTime() - 2 * 60000),
-      updatedAt: new Date(now.getTime() - 2 * 60000),
-    },
-  ];
+  return (
+    <span
+      className={`px-3 py-1 rounded-full text-xs font-medium ${styles[status]}`}
+    >
+      {labels[status]}
+    </span>
+  );
 };
 
 // Order Card Component
 const OrderCard: React.FC<{
   order: Order;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
-}> = ({ order, onStatusChange }) => {
-  const statusProgression: OrderStatus[] = ["pending", "preparing", "ready"];
+  onPrintOrder: (orderId: string) => void;
+}> = ({ order, onStatusChange, onPrintOrder }) => {
+  const statusProgression: OrderStatus[] = [
+    "pending",
+    "preparing",
+    "ready",
+    "completed",
+  ];
   const currentIndex = statusProgression.indexOf(order.status);
   const nextStatus = statusProgression[currentIndex + 1];
 
   return (
-    <div className="bg-white rounded-lg shadow-md border-2 border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
-      <div className={`px-4 py-3 border-b-2 ${getStatusColor(order.status)}`}>
-        <div className="flex justify-between items-center">
-          <h3 className="text-xl font-bold">{order.orderNumber}</h3>
-          <span className="text-sm font-semibold uppercase px-3 py-1 rounded-full bg-white bg-opacity-50">
-            {getStatusLabel(order.status)}
-          </span>
+      <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">
+            {order.orderNumber}
+          </h3>
+          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+            <Clock size={12} />
+            <span>{formatTime(order.createdAt)}</span>
+            <span>•</span>
+            <span>{getTimeAgo(order.createdAt)}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1 mt-1 text-sm opacity-80">
-          <Clock size={14} />
-          <span>{formatTime(order.createdAt)}</span>
-        </div>
+        <button
+          onClick={() => onPrintOrder(order.id)}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          title="Print Order"
+        >
+          <Printer size={18} className="text-gray-600" />
+        </button>
       </div>
 
       {/* Items */}
-      <div className="p-4 space-y-2">
+      <div className="px-4 py-4 space-y-3">
         {order.items.map((item) => (
-          <div key={item.id} className="flex justify-between items-start">
-            <div className="flex-1">
-              <div className="flex items-baseline gap-2">
-                <span className="font-semibold text-lg">{item.quantity}x</span>
-                <span className="text-gray-800">{item.name}</span>
-              </div>
-              {item.notes && (
-                <div className="ml-8 text-sm text-gray-600 italic flex items-start gap-1">
-                  <AlertCircle size={14} className="mt-0.5 flex-shrink-0" />
-                  {item.notes}
-                </div>
-              )}
-            </div>
+          <div key={item.id} className="flex justify-between items-center">
+            <span className="text-gray-900">{item.name}</span>
+            <span className="font-bold text-gray-900">×{item.quantity}</span>
           </div>
         ))}
       </div>
 
-      {/* Actions */}
-      <div className="px-4 py-3 bg-gray-50 border-t">
-        {nextStatus ? (
+      {/* Footer */}
+      <div className="px-4 py-3 border-t border-gray-200 flex justify-between items-center">
+        <StatusBadge status={order.status} />
+        {nextStatus && order.status !== "completed" && (
           <button
             onClick={() => onStatusChange(order.id, nextStatus)}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors"
           >
-            {nextStatus === "ready" ? (
-              <>
-                <Check size={18} />
-                Mark as Ready
-              </>
-            ) : (
-              `Start Preparing`
-            )}
+            Advance →
           </button>
-        ) : (
-          <div className="flex items-center justify-center gap-2 text-green-700 font-semibold py-2">
-            <Check size={18} />
-            Order Complete
-          </div>
         )}
       </div>
     </div>
   );
 };
 
-// Print Layout Component (hidden, used for printing)
-const PrintLayout: React.FC<{ orders: Order[] }> = ({ orders }) => {
+// Print Layout Component
+const PrintLayout: React.FC<{ orders: Order[]; printOrderId?: string }> = ({
+  orders,
+  printOrderId,
+}) => {
+  const ordersToPrint = printOrderId
+    ? orders.filter((o) => o.id === printOrderId)
+    : orders;
+
   return (
     <div className="print-only" style={{ display: "none" }}>
       <style>{`
@@ -202,7 +216,7 @@ const PrintLayout: React.FC<{ orders: Order[] }> = ({ orders }) => {
           </p>
         </div>
 
-        {orders.map((order, idx) => (
+        {ordersToPrint.map((order) => (
           <div
             key={order.id}
             style={{
@@ -218,12 +232,12 @@ const PrintLayout: React.FC<{ orders: Order[] }> = ({ orders }) => {
                 marginBottom: "5px",
               }}
             >
-              {order.orderNumber} - {getStatusLabel(order.status).toUpperCase()}
+              {order.orderNumber} - {order.status.toUpperCase()}
             </div>
             <div style={{ fontSize: "10px", marginBottom: "8px" }}>
               Time: {formatTime(order.createdAt)}
             </div>
-            {order.items.map((item, itemIdx) => (
+            {order.items.map((item) => (
               <div key={item.id} style={{ marginBottom: "5px" }}>
                 <div style={{ fontWeight: "bold" }}>
                   {item.quantity}x {item.name}
@@ -247,7 +261,7 @@ const PrintLayout: React.FC<{ orders: Order[] }> = ({ orders }) => {
         <div
           style={{ textAlign: "center", marginTop: "15px", fontSize: "10px" }}
         >
-          <p style={{ margin: 0 }}>Total Orders: {orders.length}</p>
+          <p style={{ margin: 0 }}>Total Orders: {ordersToPrint.length}</p>
         </div>
       </div>
     </div>
@@ -256,14 +270,9 @@ const PrintLayout: React.FC<{ orders: Order[] }> = ({ orders }) => {
 
 // Main KDS Component
 const KitchenDisplaySystem: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [lastPrintTime, setLastPrintTime] = useState<Date | null>(null);
-  const printRef = useRef<boolean>(false);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setOrders(generateMockOrders());
-  }, []);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [activeFilter, setActiveFilter] = useState<OrderStatus | "all">("all");
+  const [printOrderId, setPrintOrderId] = useState<string | undefined>();
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     setOrders((prev) =>
@@ -275,108 +284,155 @@ const KitchenDisplaySystem: React.FC = () => {
     );
   };
 
-  const handleSilentPrint = () => {
-    if (printRef.current) return;
-    printRef.current = true;
-
+  const handlePrintOrder = (orderId: string) => {
+    setPrintOrderId(orderId);
     setTimeout(() => {
       window.print();
-      setLastPrintTime(new Date());
-      printRef.current = false;
+      setPrintOrderId(undefined);
     }, 100);
   };
 
-  const pendingOrders = orders.filter((o) => o.status === "pending");
-  const preparingOrders = orders.filter((o) => o.status === "preparing");
-  const readyOrders = orders.filter((o) => o.status === "ready");
+  const handlePrintAll = () => {
+    setPrintOrderId(undefined);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
+
+  const getOrderCount = (status: OrderStatus) =>
+    orders.filter((o) => o.status === status).length;
+
+  const filteredOrders =
+    activeFilter === "all"
+      ? orders
+      : orders.filter((o) => o.status === activeFilter);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       <div className="no-print">
         {/* Header */}
-        <header className="bg-white shadow-sm border-b-2 border-gray-200 sticky top-0 z-10">
-          <div className="max-w-7xl mx-auto px-4 py-4">
+        <header className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold text-gray-900">
                 Kitchen Display System
               </h1>
-              <div className="flex items-center gap-4">
-                {lastPrintTime && (
-                  <span className="text-sm text-gray-600">
-                    Last print: {formatTime(lastPrintTime)}
-                  </span>
-                )}
-                <button
-                  onClick={handleSilentPrint}
-                  className="bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Printer size={18} />
-                  Print Orders
-                </button>
-              </div>
+              <button
+                onClick={handlePrintAll}
+                className="bg-gray-900 hover:bg-gray-800 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Printer size={18} />
+                Print All
+              </button>
             </div>
           </div>
         </header>
 
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Pending Column */}
-            <div>
-              <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500"></span>
-                Pending ({pendingOrders.length})
-              </h2>
-              <div className="space-y-4">
-                {pendingOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
+        {/* Stats Cards */}
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="text-3xl font-bold text-gray-900">
+                {orders.length}
               </div>
+              <div className="text-sm text-gray-600 mt-1">Total Orders</div>
             </div>
-
-            {/* Preparing Column */}
-            <div>
-              <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-blue-500"></span>
-                Preparing ({preparingOrders.length})
-              </h2>
-              <div className="space-y-4">
-                {preparingOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
+            <div className="bg-yellow-50 rounded-lg border border-yellow-200 p-4">
+              <div className="text-3xl font-bold text-yellow-900">
+                {getOrderCount("pending")}
               </div>
+              <div className="text-sm text-yellow-700 mt-1">Pending</div>
             </div>
-
-            {/* Ready Column */}
-            <div>
-              <h2 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-green-500"></span>
-                Ready ({readyOrders.length})
-              </h2>
-              <div className="space-y-4">
-                {readyOrders.map((order) => (
-                  <OrderCard
-                    key={order.id}
-                    order={order}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))}
+            <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
+              <div className="text-3xl font-bold text-blue-900">
+                {getOrderCount("preparing")}
               </div>
+              <div className="text-sm text-blue-700 mt-1">Preparing</div>
+            </div>
+            <div className="bg-green-50 rounded-lg border border-green-200 p-4">
+              <div className="text-3xl font-bold text-green-900">
+                {getOrderCount("ready")}
+              </div>
+              <div className="text-sm text-green-700 mt-1">Ready</div>
             </div>
           </div>
-        </main>
+
+          {/* Filter Tabs */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveFilter("all")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setActiveFilter("pending")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === "pending"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setActiveFilter("preparing")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === "preparing"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              Preparing
+            </button>
+            <button
+              onClick={() => setActiveFilter("ready")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === "ready"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              Ready
+            </button>
+            <button
+              onClick={() => setActiveFilter("completed")}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === "completed"
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              Completed
+            </button>
+          </div>
+
+          {/* Orders Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredOrders.map((order) => (
+              <OrderCard
+                key={order.id}
+                order={order}
+                onStatusChange={handleStatusChange}
+                onPrintOrder={handlePrintOrder}
+              />
+            ))}
+          </div>
+
+          {filteredOrders.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500 text-lg">No orders in this status</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Hidden Print Layout */}
-      <PrintLayout orders={orders} />
+      <PrintLayout orders={orders} printOrderId={printOrderId} />
     </div>
   );
 };
