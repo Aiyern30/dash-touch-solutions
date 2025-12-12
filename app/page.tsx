@@ -24,6 +24,36 @@ export default function Home() {
   // Check if we're on client side
   const isClient = typeof window !== "undefined";
 
+  // Add print service configuration
+  const PRINT_SERVICE_URL = "http://localhost:3001/print";
+  const DEFAULT_PRINTER = "Your Printer Name"; // Configure this
+
+  const silentPrint = useCallback(async (orderId?: string) => {
+    try {
+      // Get the print content
+      const printContent = document.querySelector(".print-content");
+      if (!printContent) return;
+
+      // Send to print service
+      const response = await fetch(PRINT_SERVICE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          html: printContent.innerHTML,
+          printerName: DEFAULT_PRINTER,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Print failed");
+
+      console.log("Printed successfully");
+    } catch (error) {
+      console.error("Silent print failed:", error);
+      // Fallback to regular print
+      window.print();
+    }
+  }, []);
+
   // Memoized handler with double-print prevention
   const handleStatusChange = useCallback(
     (orderId: string, newStatus: OrderStatus) => {
@@ -44,40 +74,43 @@ export default function Home() {
         printingRef.current = true;
         setPrintOrderId(orderId);
 
-        setTimeout(() => {
-          window.print();
+        setTimeout(async () => {
+          await silentPrint(orderId);
           setPrintOrderId(undefined);
           printingRef.current = false;
         }, 150);
       }
     },
-    [printOrderId]
+    [printOrderId, silentPrint]
   );
 
-  const handlePrintOrder = useCallback((orderId: string) => {
-    if (printingRef.current) return;
+  const handlePrintOrder = useCallback(
+    async (orderId: string) => {
+      if (printingRef.current) return;
 
-    printingRef.current = true;
-    setPrintOrderId(orderId);
+      printingRef.current = true;
+      setPrintOrderId(orderId);
 
-    setTimeout(() => {
-      window.print();
-      setPrintOrderId(undefined);
-      printingRef.current = false;
-    }, 100);
-  }, []);
+      setTimeout(async () => {
+        await silentPrint(orderId);
+        setPrintOrderId(undefined);
+        printingRef.current = false;
+      }, 100);
+    },
+    [silentPrint]
+  );
 
-  const handlePrintAll = useCallback(() => {
+  const handlePrintAll = useCallback(async () => {
     if (printingRef.current) return;
 
     printingRef.current = true;
     setPrintOrderId(undefined);
 
-    setTimeout(() => {
-      window.print();
+    setTimeout(async () => {
+      await silentPrint();
       printingRef.current = false;
     }, 100);
-  }, []);
+  }, [silentPrint]);
 
   const handleFilterChange = useCallback((filter: OrderStatus | "all") => {
     setActiveFilter(filter);
@@ -158,7 +191,9 @@ export default function Home() {
               <div className="text-2xl sm:text-3xl font-bold text-green-900">
                 {getOrderCount("ready")}
               </div>
-              <div className="text-xs sm:text-sm text-green-700 mt-1">Ready</div>
+              <div className="text-xs sm:text-sm text-green-700 mt-1">
+                Ready
+              </div>
             </div>
           </div>
 
