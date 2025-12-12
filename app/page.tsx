@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { Printer } from "lucide-react";
+import { toast } from "sonner";
 import { Order, OrderStatus } from "@/types/order";
 import { generateInitialOrders } from "@/data/orders";
 import { OrderCard } from "@/components/OrderCard";
@@ -75,11 +76,12 @@ export default function Home() {
     );
 
     if (!selectedPrinter) {
-      alert("Please select a printer first");
+      toast.error("Please select a printer first");
       return;
     }
 
     try {
+      // Get the print content
       console.log("[FRONTEND] About to query .print-content...");
       const printContent = document.querySelector(".print-content");
       console.log("[FRONTEND] printContent element:", printContent);
@@ -87,32 +89,39 @@ export default function Home() {
 
       if (!printContent) {
         console.error("[FRONTEND] Print content not found!");
-        alert("Print content not found. Please try again.");
+        toast.error("Print content not found. Please try again.");
         return;
       }
 
+      // Temporarily show the element to ensure content is rendered
       const wasHidden = printContent.classList.contains("hidden");
       if (wasHidden) {
         console.log("[FRONTEND] Temporarily showing print content...");
         printContent.classList.remove("hidden");
       }
 
+      // Small delay to ensure rendering
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       const htmlContent = (printContent as HTMLElement).innerHTML;
       console.log("[FRONTEND] HTML content length:", htmlContent.length);
       console.log("[FRONTEND] HTML preview:", htmlContent.substring(0, 200));
 
+      // Hide it again
       if (wasHidden) {
         printContent.classList.add("hidden");
       }
 
       if (!htmlContent || htmlContent.length < 100) {
         console.error("[FRONTEND] HTML content seems empty or too short");
-        alert("Print content is empty. Please try again.");
+        toast.error("Print content is empty. Please try again.");
         return;
       }
 
+      // Show loading toast
+      const loadingToast = toast.loading("Printing...");
+
+      // Send to print service
       console.log("[FRONTEND] Sending print request to:", PRINT_SERVICE_URL);
       const response = await fetch(PRINT_SERVICE_URL, {
         method: "POST",
@@ -135,12 +144,17 @@ export default function Home() {
       const result = await response.json();
       console.log("[FRONTEND] Print result:", result);
 
-      // Show confirmation to user
-      alert(`✓ Printed successfully to: ${selectedPrinter}`);
+      // Dismiss loading and show success
+      toast.dismiss(loadingToast);
+      toast.success(`Printed to ${selectedPrinter}`, {
+        description: result.filename || "Print job sent successfully",
+      });
     } catch (error) {
       console.error("[FRONTEND] Silent print failed:", error);
       console.error("[FRONTEND] Error stack:", (error as Error).stack);
-      alert("Silent print failed: " + (error as Error).message);
+      toast.error("Print failed", {
+        description: (error as Error).message,
+      });
     }
   }, [selectedPrinter, PRINT_SERVICE_URL]);
 

@@ -1,2 +1,4 @@
 node_modules/
 temp-*.pdf
+prints/*.pdf
+!prints/.gitkeep

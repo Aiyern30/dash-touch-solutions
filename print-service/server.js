@@ -9,6 +9,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Create prints directory if it doesn't exist
+const printsDir = path.join(__dirname, 'prints');
+if (!fs.existsSync(printsDir)) {
+  fs.mkdirSync(printsDir, { recursive: true });
+}
+
 const app = express();
 
 app.use(cors());
@@ -39,6 +45,16 @@ app.post('/print', async (req, res) => {
       throw new Error("No printer name provided");
     }
 
+    // Generate timestamp for filename: YYYY-MM-DD_HH-MM-SS
+    const now = new Date();
+    const timestamp = now.toISOString()
+      .replace(/T/, '_')
+      .replace(/:/g, '-')
+      .substring(0, 19); // YYYY-MM-DD_HH-MM-SS
+    
+    const pdfPath = path.join(printsDir, `print_${timestamp}.pdf`);
+    console.log('[BACKEND] Generating PDF at:', pdfPath);
+
     // Generate PDF from HTML
     console.log('[BACKEND] Launching puppeteer...');
     const browser = await puppeteer.launch({ headless: 'new' });
@@ -47,9 +63,7 @@ app.post('/print', async (req, res) => {
     console.log('[BACKEND] Setting HTML content...');
     await page.setContent(html, { waitUntil: 'networkidle0' });
     
-    const pdfPath = path.join(__dirname, `temp-${Date.now()}.pdf`);
-    console.log('[BACKEND] Generating PDF at:', pdfPath);
-    
+    console.log('[BACKEND] Generating PDF...');
     await page.pdf({ 
       path: pdfPath, 
       format: 'A4',
@@ -64,17 +78,10 @@ app.post('/print', async (req, res) => {
     await printer.print(pdfPath, { printer: printerName });
     console.log(`[PRINT SUCCESS] Sent to printer: ${printerName}`);
 
-    // Keep temp file for 5 seconds for debugging (optional - comment out in production)
-    setTimeout(() => {
-      try {
-        fs.unlinkSync(pdfPath);
-        console.log('[BACKEND] Temp PDF cleaned up');
-      } catch (e) {
-        console.error('[BACKEND] Failed to clean up temp PDF:', e);
-      }
-    }, 5000);
+    // Don't delete the file - keep it as a record
+    console.log('[BACKEND] PDF saved permanently at:', pdfPath);
     
-    res.json({ success: true, message: 'Printed successfully' });
+    res.json({ success: true, message: 'Printed successfully', filename: `print_${timestamp}.pdf` });
   } catch (error) {
     console.error(`[PRINT ERROR]`, error.message);
     console.error(error.stack);
