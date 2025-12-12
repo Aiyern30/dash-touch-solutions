@@ -3,15 +3,26 @@
 import React, { useState, useCallback, useRef } from "react";
 import { Printer } from "lucide-react";
 import { Order, OrderStatus } from "@/types/order";
-import { INITIAL_ORDERS } from "@/data/orders";
+import { generateInitialOrders } from "@/data/orders";
 import { OrderCard } from "@/components/OrderCard";
 import { PrintLayout } from "@/components/PrintLayout";
 
 export default function Home() {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [activeFilter, setActiveFilter] = useState<OrderStatus | "all">("all");
   const [printOrderId, setPrintOrderId] = useState<string | undefined>();
   const printingRef = useRef(false);
+
+  // Generate initial orders only once on client side using lazy initialization
+  const [orders, setOrders] = useState<Order[]>(() => {
+    // This function only runs once during initialization
+    if (typeof window === "undefined") {
+      return []; // Return empty array during SSR
+    }
+    return generateInitialOrders();
+  });
+
+  // Check if we're on client side
+  const isClient = typeof window !== "undefined";
 
   // Memoized handler with double-print prevention
   const handleStatusChange = useCallback(
@@ -81,6 +92,18 @@ export default function Home() {
     activeFilter === "all"
       ? orders
       : orders.filter((o) => o.status === activeFilter);
+
+  // Show loading state during SSR only
+  if (!isClient || orders.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading Kitchen Display...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
