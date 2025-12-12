@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
@@ -144,16 +145,44 @@ export default function Home() {
       const result = await response.json();
       console.log("[FRONTEND] Print result:", result);
 
-      // Dismiss loading and show success
       toast.dismiss(loadingToast);
       toast.success(`Printed to ${selectedPrinter}`, {
         description: result.filename || "Print job sent successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("[FRONTEND] Silent print failed:", error);
-      console.error("[FRONTEND] Error stack:", (error as Error).stack);
+      toast.dismiss();
+      let downloadLink = "";
+      if (error?.message?.includes("download the PDF from the backend")) {
+        const now = new Date();
+        const timestamp = now
+          .toISOString()
+          .replace(/T/, "_")
+          .replace(/:/g, "-")
+          .substring(0, 19);
+        const filename = `print_${timestamp}.pdf`;
+        downloadLink = `http://localhost:3001/prints/${filename}`;
+      }
       toast.error("Print failed", {
-        description: (error as Error).message,
+        description: (
+          <span>
+            {error.message}
+            {downloadLink && (
+              <>
+                <br />
+                <a
+                  href={downloadLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#2563eb", textDecoration: "underline" }}
+                >
+                  Download PDF
+                </a>
+              </>
+            )}
+          </span>
+        ),
+        duration: 8000,
       });
     }
   }, [selectedPrinter, PRINT_SERVICE_URL]);
