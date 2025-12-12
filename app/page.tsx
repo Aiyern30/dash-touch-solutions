@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState } from "react";
 import { Clock, Printer } from "lucide-react";
 
@@ -282,6 +281,15 @@ const KitchenDisplaySystem: React.FC = () => {
           : order
       )
     );
+
+    // Auto-print when order becomes ready
+    if (newStatus === "ready") {
+      setPrintOrderId(orderId);
+      setTimeout(() => {
+        window.print();
+        setPrintOrderId(undefined);
+      }, 150);
+    }
   };
 
   const handlePrintOrder = (orderId: string) => {
